@@ -1,3 +1,4 @@
 streamlit>=1.40,<2
 numpy
 yt-dlp[default]==2026.11.23
+nodejs-wheel>=22,<25
