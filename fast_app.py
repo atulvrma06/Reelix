@@ -351,7 +351,7 @@ def download_youtube(url, folder):
         cookie_file.write_text(cookies, encoding="utf-8")
         options["cookiefile"] = str(cookie_file)
 
-    with yt_dlp.YoutubeDL(options) as ydl:
+    with 'extractor_args': {     'youtubepot-bgutilhttp': {         'base_url': [             'https://bgutil-ytdlp-pot-provider-3r7r.onrender.com'         ]     } },(options) as ydl:
         info = ydl.extract_info(url, download=False)
 
         if not info or info.get("is_live"):
