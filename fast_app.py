@@ -25,32 +25,28 @@ st.set_page_config(
     layout="wide"
 )
 
-MAX_VIDEO_DURATION = 10800
-MAX_VIDEO_SIZE = 1024**3
-PROVIDER_VERSION = "2.0.2"
+APP_NAME = "REELIX"
+DEVELOPER = "Atul Verma"
+PHONE = "+91 6005090551"
+EMAIL = "vermaatul2946@gmail.com"
 
 
 # ==========================================
-# BACKGROUND DESIGN
+# DESIGN
 # ==========================================
 
 st.markdown("""
 <style>
-
 .stApp {
     background:
-    radial-gradient(
-        ellipse at 50% 0%,
-        #30205b 0%,
-        #101225 42%,
-        #080b17 80%
-    );
+    radial-gradient(ellipse at 50% 0%,
+    #30205b 0%, #101225 42%, #080b17 85%);
     color: #f4f3ff;
 }
 
 .block-container {
-    max-width: 1000px;
-    padding-top: 3rem;
+    max-width: 1050px;
+    padding-top: 2rem;
     padding-bottom: 4rem;
 }
 
@@ -60,15 +56,16 @@ header[data-testid="stHeader"] {
 
 .hero {
     text-align: center;
-    padding: 32px 8px 40px;
+    padding: 35px 8px 45px;
 }
 
 .hero h1 {
-    font-size: clamp(2.3rem, 6vw, 4.5rem);
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
     line-height: 1.1;
-    letter-spacing: -.05em;
-    margin: 15px 0;
+    letter-spacing: -0.05em;
     color: white;
+    margin: 15px 0;
+    font-weight: 850;
 }
 
 .hero span {
@@ -81,10 +78,9 @@ header[data-testid="stHeader"] {
 }
 
 .brand {
-    letter-spacing: .18em;
+    letter-spacing: .2em;
     color: #c4b5fd;
-    font-weight: 700;
-    font-size: .85rem;
+    font-weight: 800;
 }
 
 .stButton button {
@@ -100,29 +96,45 @@ header[data-testid="stHeader"] {
     border-radius: 10px;
 }
 
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: #14172b99;
+    border-radius: 18px;
+    border: 1px solid #34304e;
+}
+
 .stTextInput input {
     border-radius: 10px;
 }
 
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #14172b99;
-    border-radius: 20px;
+.footer {
+    text-align: center;
+    padding: 35px 15px;
+    margin-top: 60px;
+    border-top: 1px solid #49316d;
+    color: #a1a1aa;
+}
+
+.footer h2 {
+    color: #b69aff;
+    letter-spacing: 5px;
+}
+
+.footer a {
+    color: #c4b5fd;
+    text-decoration: none;
 }
 
 footer {
     visibility: hidden;
 }
-
 </style>
 
 <div class="hero">
     <div class="brand">✂ REELIX / SHORTS STUDIO</div>
-
     <h1>
         Long videos.<br>
         <span>Shorts that stand out.</span>
     </h1>
-
     <p>
         Find energetic moments and turn them into vertical clips.
     </p>
@@ -131,109 +143,46 @@ footer {
 
 
 # ==========================================
-# COMMAND EXECUTION
+# HELPERS
 # ==========================================
 
-def run(args, cwd=None):
+def get_secret(key, default=""):
+    try:
+        return st.secrets.get(key, default)
+    except Exception:
+        return os.getenv(key, default)
 
+
+def run_command(args):
     result = subprocess.run(
         args,
-        cwd=cwd,
-        capture_output=True,
-        text=True
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+        timeout=900
     )
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            result.stderr[-3000:] or
-            result.stdout[-3000:] or
-            "Command failed."
-        )
-
     return result.stdout
 
 
-# ==========================================
-# BGUTIL PO TOKEN PROVIDER
-# ==========================================
+def get_video_duration(src):
+    output = run_command([
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(src)
+    ])
 
-@st.cache_resource(show_spinner=False)
-def ensure_bgutil_provider():
-
-    home = Path.home()
-
-    repo = home / "bgutil-ytdlp-pot-provider"
-
-    server = repo / "server"
-
-    build_file = server / "build" / "generate_once.js"
-
-    node_path = shutil.which("node")
-    npm_path = shutil.which("npm")
-    npx_path = shutil.which("npx")
-
-    if not node_path:
-        raise RuntimeError("Node.js 22+ is not installed.")
-
-    if not npm_path or not npx_path:
-        raise RuntimeError(
-            "npm/npx not found. Check Node.js installation."
-        )
-
-    node_version = run([node_path, "--version"]).strip()
-
-    st.info(f"Node.js detected: {node_version}")
-
-    if not repo.exists() or not (server / "package.json").exists():
-
-        if repo.exists():
-            shutil.rmtree(repo)
-
-        st.write("Downloading bgutil provider...")
-
-        run([
-            "git",
-            "clone",
-            "--single-branch",
-            "--branch",
-            PROVIDER_VERSION,
-            "https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git",
-            str(repo)
-        ])
-
-    if not build_file.exists():
-
-        st.write("Installing provider dependencies...")
-
-        run(
-            [npm_path, "ci"],
-            cwd=str(server)
-        )
-
-        st.write("Building PO Token generation script...")
-
-        run(
-            [npx_path, "tsc"],
-            cwd=str(server)
-        )
-
-    if not build_file.exists():
-        raise RuntimeError(
-            "PO Token script build file was not created."
-        )
-
-    return str(server)
+    return float(output.decode().strip())
 
 
 # ==========================================
-# YOUTUBE URL VALIDATION
+# YOUTUBE DOWNLOAD
 # ==========================================
 
-def validate_youtube_url(url):
+def download_youtube(url, folder):
 
-    u = urlparse(url)
-
-    host = (u.hostname or "").lower()
+    parsed = urlparse(url)
 
     allowed_hosts = {
         "youtube.com",
@@ -242,21 +191,107 @@ def validate_youtube_url(url):
         "youtu.be"
     }
 
-    if u.scheme != "https" or host not in allowed_hosts:
-        raise ValueError("Enter a valid HTTPS YouTube URL.")
+    if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
+        raise ValueError("Please enter a valid HTTPS YouTube URL.")
 
-    return True
+    node_path = shutil.which("node")
+
+    if not node_path:
+        raise RuntimeError(
+            "Node.js runtime is unavailable on this server."
+        )
+
+    options = {
+        "js_runtimes": {
+            "node": {"path": node_path}
+        },
+
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["mweb", "tv", "web_safari"]
+            }
+        },
+
+        "format":
+            "bv*[height<=720]+ba/b[height<=720]/best",
+
+        "merge_output_format": "mp4",
+
+        "outtmpl": str(folder / "source.%(ext)s"),
+
+        "noplaylist": True,
+        "max_filesize": 1024**3,
+        "socket_timeout": 45,
+        "retries": 5,
+        "fragment_retries": 5,
+        "quiet": True,
+        "no_warnings": False
+    }
+
+    # Optional BGUtil HTTP provider.
+    bgutil_url = get_secret("BGUTIL_BASE_URL")
+
+    if bgutil_url:
+        options["extractor_args"]["youtubepot-bgutilhttp"] = {
+            "base_url": bgutil_url
+        }
+
+    # Optional BGUtil script provider.
+    bgutil_home = get_secret("BGUTIL_SERVER_HOME")
+
+    if bgutil_home:
+        options["extractor_args"]["youtubepot-bgutilscript"] = {
+            "server_home": bgutil_home
+        }
+
+    # Optional authorized YouTube cookies.
+    cookies = get_secret("YOUTUBE_COOKIES")
+
+    if cookies:
+        cookie_file = folder / "cookies.txt"
+        cookie_file.write_text(cookies, encoding="utf-8")
+        options["cookiefile"] = str(cookie_file)
+
+    with yt_dlp.YoutubeDL(options) as ydl:
+
+        info = ydl.extract_info(url, download=False)
+
+        if not info:
+            raise RuntimeError("Unable to read video information.")
+
+        if info.get("is_live"):
+            raise ValueError("Live videos are not supported.")
+
+        duration = float(info.get("duration") or 0)
+
+        if not 0 < duration <= 10800:
+            raise ValueError(
+                "Video must be recorded and under 180 minutes."
+            )
+
+        ydl.download([url])
+
+    files = [
+        f for f in folder.glob("source.*")
+        if f.suffix.lower() in {".mp4", ".webm", ".mkv", ".mov"}
+    ]
+
+    if not files:
+        raise RuntimeError("Downloaded video file was not found.")
+
+    return files[0]
 
 
 # ==========================================
-# AUDIO ACTIVITY ANALYSIS
+# AUDIO HIGHLIGHT DETECTION
 # ==========================================
 
-def analyze_audio(src, duration, length):
+def analyze_audio(src, duration, clip_length, count, progress):
+
+    progress.progress(15, text="Analyzing video audio...")
 
     try:
-
-        raw = run([
+        raw_audio = run_command([
             "ffmpeg",
             "-v", "error",
             "-i", str(src),
@@ -267,108 +302,124 @@ def analyze_audio(src, duration, length):
             "-"
         ])
 
-        audio = np.frombuffer(
-            raw.encode() if isinstance(raw, str) else raw,
-            dtype="<i2"
-        ).astype(np.float32) / 32768
+        audio = (
+            np.frombuffer(raw_audio, dtype="<i2")
+            .astype(np.float32) / 32768.0
+        )
 
         if len(audio) == 0:
-            raise ValueError("No audio detected.")
+            raise ValueError("No audio found.")
 
-        seconds = np.array([
-            np.sqrt(np.mean(audio[i:i+2000] ** 2))
-            for i in range(0, len(audio), 2000)
-        ])
+        samples_per_second = 2000
+
+        energy = []
+
+        for i in range(0, len(audio), samples_per_second):
+            chunk = audio[i:i + samples_per_second]
+
+            if len(chunk):
+                energy.append(
+                    float(np.sqrt(np.mean(chunk ** 2)))
+                )
+
+        energy = np.array(energy)
 
     except Exception:
-        seconds = np.zeros(int(duration))
+        energy = np.zeros(int(duration) + 1)
 
-    starts = list(
-        range(0, int(duration - length) + 1, 5)
-    )
+    progress.progress(25, text="Finding interesting moments...")
 
-    starts.append(int(duration - length))
+    last_start = int(duration - clip_length)
 
-    scores = [
-        float(np.mean(seconds[s:s+length]))
-        if len(seconds[s:s+length])
-        else 0
-        for s in starts
-    ]
+    if last_start < 0:
+        raise ValueError("Video is shorter than clip duration.")
 
-    return starts, scores
+    starts = list(range(0, last_start + 1, 5))
 
+    if last_start not in starts:
+        starts.append(last_start)
 
-# ==========================================
-# SHORTS GENERATION
-# ==========================================
+    scores = []
 
-def process(src, folder, n, length, progress):
+    for start in starts:
 
-    duration = float(run([
-        "ffprobe",
-        "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "default=nw=1:nk=1",
-        str(src)
-    ]).strip())
+        segment = energy[start:start + clip_length]
 
-    if not 0 < duration <= MAX_VIDEO_DURATION:
-
-        raise ValueError(
-            "Video must be at most 180 minutes."
+        score = (
+            float(np.mean(segment))
+            if len(segment)
+            else 0
         )
 
-    if duration < length * n:
+        scores.append(score)
 
-        raise ValueError(
-            "Video is too short for the selected clips."
-        )
+    selected = []
 
-    progress.progress(
-        30,
-        text="Analyzing audio activity..."
-    )
-
-    starts, scores = analyze_audio(
-        src,
-        duration,
-        length
-    )
-
-    chosen = []
-
-    for i in sorted(
+    ranked = sorted(
         range(len(starts)),
         key=lambda i: scores[i],
         reverse=True
-    ):
+    )
 
-        s = starts[i]
+    for index in ranked:
+
+        start = starts[index]
 
         if all(
-            abs(s - t) >= length
-            for t in chosen
+            abs(start - previous) >= clip_length
+            for previous in selected
         ):
-            chosen.append(s)
+            selected.append(start)
 
-        if len(chosen) == n:
+        if len(selected) == count:
             break
 
-    if len(chosen) < n:
-
-        chosen = [
-            int(i * (duration - length) / n)
-            for i in range(n)
+    # Fallback if audio analysis cannot identify enough moments.
+    if len(selected) < count:
+        selected = [
+            int(i * (duration - clip_length) / count)
+            for i in range(count)
         ]
+
+    return sorted(selected)
+
+
+# ==========================================
+# GENERATE VERTICAL SHORTS
+# ==========================================
+
+def generate_clips(src, folder, count, length, progress):
+
+    duration = get_video_duration(src)
+
+    if not 0 < duration <= 10800:
+        raise ValueError("Maximum supported video duration is 180 minutes.")
+
+    if duration < count * length:
+        raise ValueError(
+            "Video is too short for the selected number of clips."
+        )
+
+    starts = analyze_audio(
+        src,
+        duration,
+        length,
+        count,
+        progress
+    )
 
     results = []
 
-    for i, start in enumerate(sorted(chosen)):
+    for index, start in enumerate(starts):
 
-        output = folder / f"short_{i+1:02d}.mp4"
+        output = folder / f"Reelix_Short_{index + 1:02d}.mp4"
 
-        run([
+        progress.progress(
+            30 + int(70 * index / count),
+            text=f"Rendering clip {index + 1}/{count}..."
+        )
+
+        run_command([
             "ffmpeg",
             "-v", "error",
             "-y",
@@ -382,49 +433,45 @@ def process(src, folder, n, length, progress):
             "-map", "0:a:0?",
 
             "-vf",
-            (
-                "scale=1080:1920:"
-                "force_original_aspect_ratio=decrease:"
-                "force_divisible_by=2,"
-                "pad=1080:1920:(ow-iw)/2:(oh-ih)/2,"
-                "setsar=1"
-            ),
+            "scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2,"
+            "pad=1080:1920:(ow-iw)/2:(oh-ih)/2,"
+            "setsar=1",
 
             "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            "-preset", "veryfast",
+            "-crf", "20",
             "-threads", "2",
             "-pix_fmt", "yuv420p",
 
             "-c:a", "aac",
-            "-b:a", "192k",
+            "-b:a", "128k",
 
             "-movflags", "+faststart",
 
             str(output)
         ])
 
-        results.append((
-            output.name,
-            output.read_bytes(),
-            start
-        ))
+        if not output.exists() or output.stat().st_size == 0:
+            raise RuntimeError("A clip could not be rendered.")
 
-        progress.progress(
-            35 + int(65 * (i + 1) / n),
-            text=f"Rendered {i+1}/{n} clips..."
-        )
+        results.append({
+            "name": output.name,
+            "data": output.read_bytes(),
+            "start": start
+        })
+
+    progress.progress(100, text="All clips are ready!")
 
     return results
 
 
 # ==========================================
-# MAIN INTERFACE
+# MAIN USER INTERFACE
 # ==========================================
 
 with st.container(border=True):
 
-    st.subheader("Create your shorts")
+    st.subheader("✦ Create your shorts")
 
     mode = st.radio(
         "Source",
@@ -433,7 +480,6 @@ with st.container(border=True):
     )
 
     url = ""
-
     upload = None
 
     if mode == "YouTube link":
@@ -446,27 +492,32 @@ with st.container(border=True):
     else:
 
         upload = st.file_uploader(
-            "Upload video",
+            "Upload your video",
             type=["mp4", "mov", "mkv", "webm"]
         )
 
-    c1, c2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-    n = c1.slider(
+    count = col1.slider(
         "Number of clips",
-        1, 5, 5
+        min_value=1,
+        max_value=5,
+        value=5
     )
 
-    length = c2.slider(
+    length = col2.slider(
         "Clip duration (seconds)",
-        30, 60, 40, 5
+        min_value=30,
+        max_value=60,
+        value=40,
+        step=5
     )
 
     allowed = st.checkbox(
         "I own this video or have permission to process it."
     )
 
-    go = st.button(
+    generate = st.button(
         "✦ Generate shorts",
         use_container_width=True,
         disabled=not allowed
@@ -474,257 +525,133 @@ with st.container(border=True):
 
 
 # ==========================================
-# GENERATE BUTTON
+# PROCESSING
 # ==========================================
 
-if go:
+if generate:
 
     st.session_state.pop("clips", None)
 
-    progress = st.progress(
-        0,
-        text="Preparing video..."
-    )
+    progress = st.progress(0, text="Preparing video...")
 
     try:
 
         with tempfile.TemporaryDirectory(
-            prefix="Reelix-"
-        ) as tmp:
+            prefix="Reelix_"
+        ) as temporary:
 
-            folder = Path(tmp)
-
-            # ------------------------------
-            # LOCAL UPLOAD
-            # ------------------------------
+            folder = Path(temporary)
 
             if mode == "Upload video":
 
                 if upload is None:
-                    raise ValueError("Upload a video first.")
-
-                if upload.size > MAX_VIDEO_SIZE:
-                    raise ValueError(
-                        "Video size exceeds 1 GB."
-                    )
+                    raise ValueError("Please upload a video first.")
 
                 src = folder / (
-                    "source" +
-                    Path(upload.name).suffix.lower()
+                    "source" + Path(upload.name).suffix.lower()
                 )
 
                 src.write_bytes(upload.getbuffer())
 
-            # ------------------------------
-            # YOUTUBE DOWNLOAD
-            # ------------------------------
-
             else:
 
-                validate_youtube_url(url)
-
-                st.info(
-                    "Preparing YouTube PO Token provider..."
-                )
-
-                server_home = ensure_bgutil_provider()
-
-                node_path = shutil.which("node")
-
-                ydl_options = {
-
-                    "js_runtimes": {
-                        "node": {
-                            "path": node_path
-                        }
-                    },
-
-                    "extractor_args": {
-
-                        "youtubepot-bgutilscript": {
-                            "server_home": [server_home]
-                        },
-
-                        "youtube": {
-                            "player_client": [
-                                "mweb",
-                                "tv",
-                                "web_safari"
-                            ]
-                        }
-                    },
-
-                    "format": (
-                        "bv*[height<=1080][ext=mp4]+ba[ext=m4a]"
-                        "/b[height<=720]"
-                        "/b[height<=480]"
-                    ),
-
-                    "merge_output_format": "mp4",
-
-                    "outtmpl": str(
-                        folder / "source.%(ext)s"
-                    ),
-
-                    "noplaylist": True,
-
-                    "max_filesize": MAX_VIDEO_SIZE,
-
-                    "quiet": False,
-
-                    "verbose": True,
-
-                    "socket_timeout": 30,
-
-                    "retries": 3,
-
-                    "fragment_retries": 3
-                }
+                if not url.strip():
+                    raise ValueError("Please enter a YouTube URL.")
 
                 progress.progress(
-                    10,
-                    text="Checking YouTube video..."
+                    5,
+                    text="Downloading authorized video..."
                 )
 
-                with yt_dlp.YoutubeDL(ydl_options) as y:
+                src = download_youtube(url.strip(), folder)
 
-                    info = y.extract_info(
-                        url,
-                        download=False
-                    )
-
-                    if not info:
-                        raise ValueError(
-                            "Unable to read YouTube video."
-                        )
-
-                    if info.get("is_live"):
-                        raise ValueError(
-                            "Live streams are not supported."
-                        )
-
-                    video_duration = float(
-                        info.get("duration") or 0
-                    )
-
-                    if not 0 < video_duration <= MAX_VIDEO_DURATION:
-
-                        raise ValueError(
-                            "Choose a recorded video under 180 minutes."
-                        )
-
-                    if info.get("filesize", 0) > MAX_VIDEO_SIZE:
-                        raise ValueError(
-                            "Video exceeds 1 GB."
-                        )
-
-                    progress.progress(
-                        20,
-                        text="Downloading authorized video..."
-                    )
-
-                    y.download([url])
-
-                src_files = [
-                    f for f in folder.glob("source.*")
-                    if f.suffix.lower() in [
-                        ".mp4",
-                        ".webm",
-                        ".mkv",
-                        ".mov"
-                    ]
-                ]
-
-                if not src_files:
-                    raise ValueError(
-                        "Downloaded video file not found."
-                    )
-
-                src = src_files[0]
-
-            # ------------------------------
-            # PROCESS CLIPS
-            # ------------------------------
-
-            st.session_state.clips = process(
+            clips = generate_clips(
                 src,
                 folder,
-                n,
+                count,
                 length,
                 progress
             )
 
+            st.session_state["clips"] = clips
+
         st.success("Your clips are ready!")
 
-    except Exception as e:
+    except subprocess.TimeoutExpired:
+        st.error("Processing timed out. Try a shorter video.")
 
-        st.error(
-            f"Processing failed: {str(e)}"
-        )
+    except Exception as error:
 
-        st.info(
-            "If YouTube blocks downloading, "
-            "try an authorized MP4 upload."
-        )
+        message = str(error)
+
+        if "403" in message:
+            st.error(
+                "YouTube returned HTTP 403. "
+                "The hosting IP may be restricted. "
+                "Try an authorized uploaded video instead."
+            )
+        else:
+            st.error(f"Processing failed: {message}")
 
 
 # ==========================================
-# DISPLAY GENERATED SHORTS
+# RESULTS
 # ==========================================
 
 if st.session_state.get("clips"):
 
-    st.subheader("Your shorts")
+    st.divider()
+    st.subheader("✦ Your shorts")
 
-    clips = st.session_state.clips
+    clips = st.session_state["clips"]
 
-    for i, (name, data, start) in enumerate(clips):
-
-        with st.container(border=True):
-
-            a, b = st.columns([1, 2])
-
-            a.video(data)
-
-            b.markdown(
-                f"**Short {i+1:02d}**"
-            )
-
-            b.caption(
-                f"Source timestamp: "
-                f"{start//60}:{start%60:02d}"
-            )
-
-            b.download_button(
-                "Download MP4",
-                data=data,
-                file_name=name,
-                mime="video/mp4",
-                key=name
-            )
-
-    # ------------------------------
-    # DOWNLOAD ALL AS ZIP
-    # ------------------------------
-
-    buffer = io.BytesIO()
+    zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(
-        buffer,
+        zip_buffer,
         "w",
         zipfile.ZIP_DEFLATED
     ) as archive:
 
-        for name, data, _ in clips:
-
+        for clip in clips:
             archive.writestr(
-                name,
-                data
+                clip["name"],
+                clip["data"]
             )
+
+    for index, clip in enumerate(clips):
+
+        with st.container(border=True):
+
+            left, right = st.columns([1, 1])
+
+            with left:
+                st.video(clip["data"])
+
+            with right:
+
+                st.markdown(
+                    f"### Short {index + 1:02d}"
+                )
+
+                start = clip["start"]
+
+                st.caption(
+                    f"Source timestamp: "
+                    f"{start // 60}:{start % 60:02d}"
+                )
+
+                st.download_button(
+                    "⬇ Download MP4",
+                    data=clip["data"],
+                    file_name=clip["name"],
+                    mime="video/mp4",
+                    key=f"download_{index}"
+                )
 
     st.download_button(
         "⬇ Download all clips (ZIP)",
-        data=buffer.getvalue(),
+        data=zip_buffer.getvalue(),
         file_name="Reelix_shorts.zip",
         mime="application/zip",
         use_container_width=True
@@ -735,54 +662,34 @@ if st.session_state.get("clips"):
 # FOOTER
 # ==========================================
 
-st.caption(
-    "Reelix AI • Audio-activity highlights • No paid AI API"
-)
-
 st.markdown("""
-<hr style="
-    border: 0;
-    border-top: 1px solid #302040;
-">
+<div class="footer">
 
-<div style="
-    text-align:center;
-    padding:25px;
-    color:#a1a1aa;
-">
-
-<h2 style="color:#a855f7;">
-REELIX
-</h2>
+<h2>REELIX</h2>
 
 <p>Long Videos. Viral Shorts.</p>
 
 <p>
 Designed & Developed by
-<b style="color:white;">Atul Verma</b>
+<strong style="color:white;">Atul Verma</strong>
 </p>
 
 <p>
 📞
-<a style="color:#c084fc;"
-href="tel:+916005090551">
+<a href="tel:+916005090551">
 +91 6005090551
 </a>
 </p>
 
 <p>
 ✉️
-<a style="color:#c084fc;"
-href="mailto:vermaatul2946@gmail.com">
+<a href="mailto:vermaatul2946@gmail.com">
 vermaatul2946@gmail.com
 </a>
 </p>
 
-<p style="
-    font-size:12px;
-    color:#71717a;
-">
-© 2026 Reelix. All Rights Reserved.
+<p style="font-size:12px;">
+© 2026 Reelix AI. All Rights Reserved.
 </p>
 
 </div>

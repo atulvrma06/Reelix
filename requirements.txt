@@ -1,5 +1,7 @@
-streamlit>=1.40,<2
+
+streamlit
 numpy
-yt-dlp[default]==2026.11.23
-nodejs-wheel>=22,<25
-bgutil-ytdlp-pot-provider==2.0.2
+yt-dlp
+yt-dlp-ejs
+bgutil-ytdlp-pot-provider
+requests
