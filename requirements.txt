@@ -1,7 +1,7 @@
-
 streamlit
 numpy
 yt-dlp
 yt-dlp-ejs
 bgutil-ytdlp-pot-provider
 requests
+nodejs-wheel==24.19.0
