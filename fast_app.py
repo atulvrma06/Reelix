@@ -78,7 +78,7 @@ if go:
             else:
                 u=urlparse(url); host=u.hostname or ''
                 if u.scheme!='https' or host not in {'youtube.com','www.youtube.com','m.youtube.com','youtu.be'}: raise ValueError('Enter a valid HTTPS YouTube link.')
-                with yt_dlp.YoutubeDL({'format':'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=480]/bv*[height<=480]+ba','merge_output_format':'mp4','outtmpl':str(folder/'source.%(ext)s'),'noplaylist':True,'max_filesize':1024**3,'quiet':True,'socket_timeout':30}) as y:
+                with yt_dlp.YoutubeDL({'js_runtimes': {'node': {}}, 'format':'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=480]/bv*[height<=480]+ba','merge_output_format':'mp4','outtmpl':str(folder/'source.%(ext)s'),'noplaylist':True,'max_filesize':1024**3,'quiet':True,'socket_timeout':30}) as y:
                     info=y.extract_info(url,download=False)
                     if not info or info.get('is_live') or not 0<(info.get('duration') or 0)<=10800: raise ValueError('Choose a recorded video under 180 minutes.')
                     y.download([url])
