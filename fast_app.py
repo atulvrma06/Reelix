@@ -351,8 +351,14 @@ def download_youtube(url, folder):
     ]
 }
     with yt_dlp.YoutubeDL(options) as ydl:
-        info = ydl.extract_info(url, download=False)
+           options.setdefault("extractor_args", {})["youtubepot-bgutilhttp"] = {
+        "base_url": [
+            "https://bgutil-ytdlp-pot-provider-3r7r.onrender.com"
+        ]
+    }
 
+    with yt_dlp.YoutubeDL(options) as ydl:
+        info = ydl.extract_info(url, download=False)
         if not info or info.get("is_live"):
             raise ValueError("Invalid or live video.")
 
