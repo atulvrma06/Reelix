@@ -306,17 +306,22 @@ def download_youtube(url, folder):
         raise ValueError("Please enter a valid HTTPS YouTube URL.")
 
     options = {
+        # Prefer IPv4: some hosted environments resolve YouTube media to IPv6
+        # addresses that can fail with HTTP 403 during the media download.
+        "source_address": "0.0.0.0",
         "extractor_args": {
-            "youtube": {"player_client": ["mweb", "tv", "web_safari"]}
+            "youtube": {"player_client": ["mweb", "web_safari", "tv"]}
         },
-        "format": "bv*[height<=720]+ba/b[height<=720]/best",
+        "format": "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720]/best[height<=720]",
         "merge_output_format": "mp4",
         "outtmpl": str(folder / "source.%(ext)s"),
         "noplaylist": True,
         "max_filesize": 1024 ** 3,
         "socket_timeout": 45,
-        "retries": 5,
-        "fragment_retries": 5,
+        "retries": 8,
+        "fragment_retries": 8,
+        "extractor_retries": 5,
+        "file_access_retries": 3,
         "quiet": True,
         "no_warnings": True,
     }
@@ -356,7 +361,9 @@ def download_youtube(url, folder):
         if not 0 < duration <= MAX_DURATION:
             raise ValueError("Video must be under 180 minutes.")
 
-        ydl.download([url])
+        # Reuse the freshly extracted metadata and signed media URLs rather than
+        # extracting the video a second time before download.
+        ydl.process_ie_result(info, download=True)
 
     files = [
         f for f in folder.glob("source.*")
@@ -615,8 +622,12 @@ if generate:
 
         if "403" in message:
             st.error(
-                "YouTube returned HTTP 403. The hosting IP may be restricted. "
-                "Try uploading the video instead."
+                "YouTube returned HTTP 403 while sending the video data. "
+                "Reelix now retries through IPv4 and reuses the extracted media URL. "
+                "If this still happens, YouTube may be blocking the Streamlit Cloud "
+                "server IP; a PO Token alone cannot guarantee a fix. Use an authorized "
+                "video upload or configure BGUTIL_BASE_URL with a separately hosted "
+                "BgUtils provider."
             )
         else:
             st.error(f"Processing failed: {message}")
