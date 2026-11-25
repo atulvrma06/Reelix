@@ -197,9 +197,17 @@ def download_youtube(url, folder):
     node_path = shutil.which("node")
 
     if not node_path:
-        raise RuntimeError(
-            "Node.js runtime is unavailable on this server."
-        )
+        try:
+            import nodejs_wheel
+            nodejs_wheel.node(["--version"])
+            node_path = shutil.which("node")
+        except Exception:
+            node_path = None
+
+if not node_path:
+    raise RuntimeError(
+        "Node.js installation failed. Check requirements.txt."
+    )
 
     options = {
         "js_runtimes": {
@@ -252,22 +260,50 @@ def download_youtube(url, folder):
         cookie_file.write_text(cookies, encoding="utf-8")
         options["cookiefile"] = str(cookie_file)
 
+   
+def download_youtube(url, folder):
+
+    parsed = urlparse(url)
+
+    allowed_hosts = {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtu.be"
+    }
+
+    if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
+        raise ValueError("Enter a valid HTTPS YouTube URL.")
+
+    node_path = shutil.which("node")
+
+    if not node_path:
+        raise RuntimeError("Node.js is unavailable.")
+
+    options = {
+        "js_runtimes": {
+            "node": {"path": node_path}
+        },
+        "format": "best[height<=720]/best",
+        "outtmpl": str(folder / "source.%(ext)s"),
+        "noplaylist": True,
+        "socket_timeout": 45,
+        "retries": 5,
+        "fragment_retries": 5,
+        "quiet": True
+    }
+
     with yt_dlp.YoutubeDL(options) as ydl:
 
         info = ydl.extract_info(url, download=False)
 
-        if not info:
-            raise RuntimeError("Unable to read video information.")
-
-        if info.get("is_live"):
-            raise ValueError("Live videos are not supported.")
+        if not info or info.get("is_live"):
+            raise ValueError("Invalid or live video.")
 
         duration = float(info.get("duration") or 0)
 
         if not 0 < duration <= 10800:
-            raise ValueError(
-                "Video must be recorded and under 180 minutes."
-            )
+            raise ValueError("Video must be under 180 minutes.")
 
         ydl.download([url])
 
@@ -277,7 +313,7 @@ def download_youtube(url, folder):
     ]
 
     if not files:
-        raise RuntimeError("Downloaded video file was not found.")
+        raise RuntimeError("Downloaded video not found.")
 
     return files[0]
 
@@ -679,6 +715,8 @@ Designed & Developed by
 <a href="tel:+916005090551">
 +91 6005090551
 </a>
+
+
 </p>
 
 <p>
