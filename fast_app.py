@@ -30,6 +30,7 @@ EMAIL = "vermaatul2946@gmail.com"
 
 MAX_DURATION = 10800  # 180 minutes
 VIDEO_EXTS = {".mp4", ".webm", ".mkv", ".mov"}
+DEFAULT_BGUTIL_URL = "https://bgutil-ytdlp-pot-provider-3r7r.onrender.com"
 
 
 # ==========================================
@@ -38,201 +39,299 @@ VIDEO_EXTS = {".mp4", ".webm", ".mkv", ".mov"}
 
 CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg: #07080f;
+    --card: rgba(20, 20, 40, .62);
+    --line: rgba(255, 255, 255, .08);
+    --violet: #8b5cf6;
+    --pink: #ec4899;
+    --cyan: #22d3ee;
+    --text: #f5f4ff;
+    --muted: #9b9dbd;
+}
 
 html, body, [class*="css"], .stApp {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .stApp {
     background:
-        radial-gradient(900px 500px at 15% -5%, rgba(124, 77, 255, .35), transparent 60%),
-        radial-gradient(800px 500px at 90% 5%, rgba(236, 72, 153, .22), transparent 60%),
-        radial-gradient(700px 600px at 50% 110%, rgba(56, 189, 248, .14), transparent 60%),
-        #0a0c18;
-    color: #f4f3ff;
+        radial-gradient(1000px 520px at 12% -8%, rgba(139, 92, 246, .38), transparent 60%),
+        radial-gradient(800px 520px at 95% 0%, rgba(236, 72, 153, .24), transparent 60%),
+        radial-gradient(900px 600px at 50% 115%, rgba(34, 211, 238, .14), transparent 60%),
+        var(--bg);
+    color: var(--text);
+}
+
+/* subtle grid texture */
+.stApp::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 46px 46px;
+    mask-image: radial-gradient(ellipse at 50% 0%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000 20%, transparent 75%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
 header[data-testid="stHeader"] { background: transparent; }
 
 .block-container {
-    max-width: 980px;
-    padding-top: 1.5rem;
+    max-width: 1000px;
+    padding-top: 1.2rem;
     padding-bottom: 4rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* ---------- Nav ---------- */
+.nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 4px 0;
+}
+.logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; letter-spacing: .32em; font-size: .95rem; color: #fff;
+}
+.logo-mark {
+    width: 34px; height: 34px; border-radius: 11px;
+    display: grid; place-items: center; font-size: 1rem;
+    background: linear-gradient(135deg, var(--violet), var(--pink));
+    box-shadow: 0 8px 24px -6px rgba(168, 85, 247, .8);
+}
+.nav-tag {
+    font-size: .74rem; color: var(--muted); font-weight: 600;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.03);
 }
 
 /* ---------- Hero ---------- */
-.hero { text-align: center; padding: 40px 8px 28px; }
+.hero { text-align: center; padding: 48px 8px 12px; }
 
 .pill {
-    display: inline-block;
-    padding: 7px 18px;
-    border-radius: 999px;
-    background: rgba(167, 139, 250, .12);
-    border: 1px solid rgba(167, 139, 250, .35);
-    color: #d8ccff;
-    font-size: .78rem;
-    font-weight: 700;
-    letter-spacing: .18em;
-    backdrop-filter: blur(8px);
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 16px; border-radius: 999px;
+    background: rgba(139, 92, 246, .12);
+    border: 1px solid rgba(139, 92, 246, .35);
+    color: #ddd2ff; font-size: .74rem; font-weight: 700; letter-spacing: .16em;
+}
+.dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #34d399;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, .7);
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
 }
 
 .hero h1 {
-    font-size: clamp(2.4rem, 6vw, 4.4rem);
-    line-height: 1.08;
-    letter-spacing: -0.045em;
-    font-weight: 800;
-    color: #fff;
-    margin: 22px 0 14px;
+    font-size: clamp(2.5rem, 6.4vw, 4.8rem);
+    line-height: 1.04; letter-spacing: -0.05em; font-weight: 800;
+    color: #fff; margin: 24px 0 16px;
 }
-
 .grad {
-    background: linear-gradient(100deg, #a78bfa 0%, #f472b6 55%, #38bdf8 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    background: linear-gradient(100deg, #a78bfa 0%, #f472b6 50%, #22d3ee 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
+    animation: shine 6s linear infinite;
 }
+@keyframes shine { to { background-position: 200% center; } }
 
 .hero p {
-    color: #aeb0cc;
-    font-size: 1.08rem;
-    max-width: 560px;
-    margin: 0 auto;
+    color: var(--muted); font-size: 1.08rem; line-height: 1.65;
+    max-width: 580px; margin: 0 auto;
 }
 
-.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 26px; }
-.chip {
-    padding: 8px 16px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, .05);
-    border: 1px solid rgba(255, 255, 255, .09);
-    color: #cfd0e6;
-    font-size: .86rem;
-    font-weight: 500;
+/* ---------- Feature cards ---------- */
+.features {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin: 34px 0 30px;
 }
+.feature {
+    padding: 18px 16px; border-radius: 18px;
+    background: var(--card); border: 1px solid var(--line);
+    backdrop-filter: blur(12px);
+    transition: transform .25s ease, border-color .25s ease;
+}
+.feature:hover { transform: translateY(-4px); border-color: rgba(139, 92, 246, .5); }
+.feature .ic {
+    width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+    font-size: 1.1rem; margin-bottom: 12px;
+    background: linear-gradient(135deg, rgba(139,92,246,.3), rgba(236,72,153,.22));
+}
+.feature b { display: block; font-size: .9rem; color: #fff; margin-bottom: 3px; }
+.feature span { font-size: .78rem; color: var(--muted); line-height: 1.45; }
+@media (max-width: 800px) { .features { grid-template-columns: repeat(2, 1fr); } }
 
-/* ---------- Cards ---------- */
+/* ---------- Main cards ---------- */
 div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: linear-gradient(160deg, rgba(30, 27, 60, .72), rgba(15, 17, 36, .72));
-    border: 1px solid rgba(167, 139, 250, .18);
-    border-radius: 22px;
-    box-shadow: 0 20px 60px -20px rgba(0, 0, 0, .6);
-    backdrop-filter: blur(14px);
-    padding: .6rem .8rem;
+    background: linear-gradient(160deg, rgba(30, 27, 62, .72), rgba(12, 14, 32, .72));
+    border: 1px solid rgba(139, 92, 246, .2);
+    border-radius: 24px;
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255,255,255,.05);
+    backdrop-filter: blur(16px);
+    padding: .9rem 1rem;
 }
 
-h2, h3 { letter-spacing: -0.02em; font-weight: 700; }
+h2, h3 { letter-spacing: -0.03em; font-weight: 800; color: #fff; }
+label, .stRadio label p, .stSlider label p, .stCheckbox label p {
+    color: #cfd0ea !important; font-weight: 600 !important; font-size: .88rem !important;
+}
+
+/* ---------- Segmented radio ---------- */
+div[role="radiogroup"] {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line);
+    border-radius: 14px; padding: 5px; gap: 4px; width: fit-content;
+}
+div[role="radiogroup"] > label {
+    padding: 8px 18px; border-radius: 10px; margin: 0 !important;
+    cursor: pointer; transition: background .2s ease;
+}
+div[role="radiogroup"] > label > div:first-child { display: none; }
+div[role="radiogroup"] > label:has(input:checked) {
+    background: linear-gradient(110deg, #7c4dff, #c04ee8 60%, #ec4899);
+    box-shadow: 0 6px 20px -6px rgba(168, 85, 247, .8);
+}
+div[role="radiogroup"] > label:has(input:checked) p { color: #fff !important; }
 
 /* ---------- Inputs ---------- */
 .stTextInput input {
     background: rgba(255, 255, 255, .05) !important;
     border: 1px solid rgba(255, 255, 255, .12) !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
     color: #fff !important;
-    padding: 12px 14px !important;
+    padding: 14px 16px !important;
 }
 .stTextInput input:focus {
-    border-color: #a78bfa !important;
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, .25) !important;
+    border-color: var(--violet) !important;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, .22) !important;
 }
 
 [data-testid="stFileUploaderDropzone"] {
-    background: rgba(255, 255, 255, .03);
-    border: 1.5px dashed rgba(167, 139, 250, .45);
-    border-radius: 16px;
+    background: rgba(139, 92, 246, .05);
+    border: 1.5px dashed rgba(139, 92, 246, .5);
+    border-radius: 18px;
+    padding: 28px;
+    transition: background .2s ease, border-color .2s ease;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    background: rgba(139, 92, 246, .1);
+    border-color: var(--pink);
+}
+
+[data-testid="stSlider"] [role="slider"] {
+    background: #fff !important;
+    box-shadow: 0 0 0 5px rgba(139, 92, 246, .35);
 }
 
 /* ---------- Buttons ---------- */
 .stButton button, .stDownloadButton button {
-    border-radius: 14px;
+    border-radius: 16px;
     font-weight: 700;
-    min-height: 50px;
-    transition: transform .15s ease, box-shadow .2s ease;
+    min-height: 54px;
+    letter-spacing: .01em;
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
 }
 .stButton button {
     background: linear-gradient(110deg, #7c4dff, #c04ee8 60%, #ec4899);
-    color: #fff;
-    border: 0;
-    box-shadow: 0 10px 30px -8px rgba(168, 85, 247, .7);
+    color: #fff; border: 0;
+    box-shadow: 0 12px 34px -10px rgba(168, 85, 247, .8);
 }
 .stButton button:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 16px 38px -8px rgba(168, 85, 247, .9);
+    box-shadow: 0 18px 42px -10px rgba(168, 85, 247, 1);
     color: #fff;
 }
-.stButton button:disabled { opacity: .4; }
+.stButton button:disabled { opacity: .35; }
 
 .stDownloadButton button {
-    background: rgba(255, 255, 255, .06);
-    border: 1px solid rgba(167, 139, 250, .35);
-    color: #e9e3ff;
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(139, 92, 246, .4);
+    color: #ebe6ff;
 }
 .stDownloadButton button:hover {
-    border-color: #a78bfa;
-    background: rgba(167, 139, 250, .15);
+    border-color: var(--violet);
+    background: rgba(139, 92, 246, .18);
     color: #fff;
+}
+
+/* ---------- Progress ---------- */
+.stProgress > div > div > div > div {
+    background: linear-gradient(90deg, #7c4dff, #ec4899, #22d3ee);
+    border-radius: 999px;
 }
 
 /* ---------- Results ---------- */
 .badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: .76rem;
-    font-weight: 700;
-    margin-right: 6px;
-    background: rgba(167, 139, 250, .16);
-    color: #d8ccff;
-    border: 1px solid rgba(167, 139, 250, .3);
+    display: inline-block; padding: 5px 13px; border-radius: 999px;
+    font-size: .76rem; font-weight: 700; margin: 0 6px 6px 0;
+    background: rgba(139, 92, 246, .16); color: #ddd2ff;
+    border: 1px solid rgba(139, 92, 246, .32);
 }
 .badge.hot {
-    background: rgba(244, 114, 182, .15);
-    color: #fbcfe8;
-    border-color: rgba(244, 114, 182, .35);
+    background: rgba(244, 114, 182, .14); color: #fcd3e8;
+    border-color: rgba(244, 114, 182, .38);
+}
+.meter {
+    height: 8px; border-radius: 999px; background: rgba(255,255,255,.07);
+    overflow: hidden; margin: 8px 0 14px;
+}
+.meter > div {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, #7c4dff, #ec4899, #fbbf24);
 }
 
 [data-testid="stVideo"] video {
-    border-radius: 16px;
-    max-height: 480px;
-    background: #000;
+    border-radius: 18px; max-height: 480px; background: #000;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,.9);
 }
 
 hr { border-color: rgba(255, 255, 255, .08) !important; }
 
 /* ---------- Footer ---------- */
 .footer {
-    text-align: center;
-    padding: 36px 15px 10px;
-    margin-top: 64px;
-    border-top: 1px solid rgba(167, 139, 250, .2);
-    color: #9a9bb5;
+    text-align: center; padding: 38px 15px 10px; margin-top: 64px;
+    border-top: 1px solid rgba(139, 92, 246, .2); color: var(--muted);
 }
 .footer h2 {
-    letter-spacing: .5em;
-    font-weight: 800;
-    margin-bottom: 4px;
+    letter-spacing: .5em; font-weight: 800; margin-bottom: 4px;
     background: linear-gradient(100deg, #a78bfa, #f472b6);
-    -webkit-background-clip: text;
-    background-clip: text;
+    -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
 }
+.footer p { margin: 4px 0; }
 .footer a { color: #c4b5fd; text-decoration: none; }
 .footer a:hover { color: #fff; }
 </style>
 """
 
 HERO = """
-<div class="hero">
-<span class="pill">✂ REELIX · SHORTS STUDIO</span>
-<h1>Long videos.<br><span class="grad">Shorts that stand out.</span></h1>
-<p>Drop in a video, and Reelix finds the most energetic moments and turns them into polished vertical clips.</p>
-<div class="chips">
-<span class="chip">🎧 Audio-energy detection</span>
-<span class="chip">📱 1080×1920 vertical</span>
-<span class="chip">🌫️ Blurred backdrop</span>
-<span class="chip">📦 One-click ZIP</span>
+<div class="nav">
+  <div class="logo"><span class="logo-mark">✂</span>REELIX</div>
+  <span class="nav-tag">Shorts Studio · v2</span>
 </div>
+
+<div class="hero">
+  <span class="pill"><span class="dot"></span>AI SHORTS STUDIO</span>
+  <h1>Long videos.<br><span class="grad">Shorts that stand out.</span></h1>
+  <p>Drop in a video and Reelix finds the most energetic moments,
+     then turns them into polished vertical clips, ready to post.</p>
+</div>
+
+<div class="features">
+  <div class="feature"><div class="ic">🎧</div><b>Energy detection</b><span>Finds the loudest, most exciting moments</span></div>
+  <div class="feature"><div class="ic">📱</div><b>1080×1920</b><span>True vertical for Shorts, Reels &amp; TikTok</span></div>
+  <div class="feature"><div class="ic">🌫️</div><b>Blurred backdrop</b><span>No ugly black bars, ever</span></div>
+  <div class="feature"><div class="ic">📦</div><b>One-click ZIP</b><span>Download every clip in one go</span></div>
 </div>
 """
 
@@ -245,20 +344,28 @@ st.markdown(HERO, unsafe_allow_html=True)
 # ==========================================
 
 def get_secret(key, default=""):
+    """Read from Streamlit secrets, then environment variables."""
     try:
-        return st.secrets.get(key, default)
+        value = st.secrets.get(key)
+        if value:
+            return value
     except Exception:
-        return os.getenv(key, default)
+        pass
+    return os.getenv(key, default)
 
 
 def run_command(args):
-    result = subprocess.run(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True,
-        timeout=900,
-    )
+    try:
+        result = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+            timeout=900,
+        )
+    except subprocess.CalledProcessError as error:
+        details = (error.stderr or b"").decode(errors="ignore").strip()
+        raise RuntimeError(details[-400:] or f"{args[0]} failed.") from error
     return result.stdout
 
 
@@ -305,18 +412,25 @@ def download_youtube(url, folder):
     if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
         raise ValueError("Please enter a valid HTTPS YouTube URL.")
 
+    extractor_args = {
+        "youtube": {"player_client": ["mweb", "web_safari", "tv"]},
+    }
+
     options = {
-        "extractor_args": {
-            "youtube": {"player_client": ["mweb", "tv", "web_safari"]}
-        },
-        "format": "bv*[height<=720]+ba/b[height<=720]/best",
+        # Prefer IPv4: some hosted environments resolve YouTube media to IPv6
+        # addresses that can fail with HTTP 403 during the media download.
+        "source_address": "0.0.0.0",
+        "extractor_args": extractor_args,
+        "format": "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720]/best[height<=720]",
         "merge_output_format": "mp4",
         "outtmpl": str(folder / "source.%(ext)s"),
         "noplaylist": True,
         "max_filesize": 1024 ** 3,
         "socket_timeout": 45,
-        "retries": 5,
-        "fragment_retries": 5,
+        "retries": 8,
+        "fragment_retries": 8,
+        "extractor_retries": 5,
+        "file_access_retries": 3,
         "quiet": True,
         "no_warnings": True,
     }
@@ -325,19 +439,15 @@ def download_youtube(url, folder):
     if node_path:
         options["js_runtimes"] = {"node": {"path": node_path}}
 
-    # Optional BGUtil HTTP provider.
-    bgutil_url = get_secret("BGUTIL_BASE_URL")
+    # BGUtil PO-token provider (HTTP). Secret/env var overrides the default.
+    bgutil_url = get_secret("BGUTIL_BASE_URL", DEFAULT_BGUTIL_URL)
     if bgutil_url:
-        options["extractor_args"]["youtubepot-bgutilhttp"] = {
-            "base_url": bgutil_url
-        }
+        extractor_args["youtubepot-bgutilhttp"] = {"base_url": [bgutil_url]}
 
     # Optional BGUtil script provider.
     bgutil_home = get_secret("BGUTIL_SERVER_HOME")
     if bgutil_home:
-        options["extractor_args"]["youtubepot-bgutilscript"] = {
-            "server_home": bgutil_home
-        }
+        extractor_args["youtubepot-bgutilscript"] = {"server_home": [bgutil_home]}
 
     # Optional authorized YouTube cookies.
     cookies = get_secret("YOUTUBE_COOKIES")
@@ -345,17 +455,6 @@ def download_youtube(url, folder):
         cookie_file = folder / "cookies.txt"
         cookie_file.write_text(cookies, encoding="utf-8")
         options["cookiefile"] = str(cookie_file)
-    options.setdefault("extractor_args", {})["youtubepot-bgutilhttp"] = {
-    "base_url": [
-        "https://bgutil-ytdlp-pot-provider-3r7r.onrender.com"
-    ]
-}
-    with yt_dlp.YoutubeDL(options) as ydl:
-           options.setdefault("extractor_args", {})["youtubepot-bgutilhttp"] = {
-        "base_url": [
-            "https://bgutil-ytdlp-pot-provider-3r7r.onrender.com"
-        ]
-    }
 
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(url, download=False)
@@ -366,7 +465,9 @@ def download_youtube(url, folder):
         if not 0 < duration <= MAX_DURATION:
             raise ValueError("Video must be under 180 minutes.")
 
-        ydl.download([url])
+        # Reuse the freshly extracted metadata and signed media URLs rather than
+        # extracting the video a second time before download.
+        ydl.process_ie_result(info, download=True)
 
     files = [
         f for f in folder.glob("source.*")
@@ -412,8 +513,9 @@ def analyze_audio(src, duration, clip_length, count, progress):
         energy = np.zeros(total_seconds, dtype=np.float32)
 
     # Pad so every window slice is full length.
-    if len(energy) < total_seconds + clip_length:
-        energy = np.pad(energy, (0, total_seconds + clip_length - len(energy)))
+    needed = total_seconds + clip_length
+    if len(energy) < needed:
+        energy = np.pad(energy, (0, needed - len(energy)))
 
     progress.progress(25, text="Finding interesting moments...")
 
@@ -427,16 +529,15 @@ def analyze_audio(src, duration, clip_length, count, progress):
 
     # Rolling window means via prefix sums.
     prefix = np.concatenate(([0.0], np.cumsum(energy)))
-    scores = [
-        float((prefix[s + clip_length] - prefix[s]) / clip_length)
+    scores = {
+        s: float((prefix[s + clip_length] - prefix[s]) / clip_length)
         for s in starts
-    ]
+    }
 
-    ranked = sorted(range(len(starts)), key=lambda i: scores[i], reverse=True)
+    ranked = sorted(starts, key=lambda s: scores[s], reverse=True)
 
     selected = []
-    for index in ranked:
-        start = starts[index]
+    for start in ranked:
         if all(abs(start - prev) >= clip_length for prev in selected):
             selected.append(start)
         if len(selected) == count:
@@ -448,18 +549,16 @@ def analyze_audio(src, duration, clip_length, count, progress):
             int(i * (duration - clip_length) / max(count - 1, 1))
             for i in range(count)
         ]
+        for s in selected:
+            if s not in scores:
+                scores[s] = float((prefix[s + clip_length] - prefix[s]) / clip_length)
 
     selected = sorted(selected)
 
     # Hype score: window loudness relative to the loudest window.
-    peak = max(scores) if scores and max(scores) > 0 else 1.0
-    score_by_start = dict(zip(starts, scores))
-    hype = []
-    for s in selected:
-        window = float(
-            (prefix[s + clip_length] - prefix[s]) / clip_length
-        ) if s not in score_by_start else score_by_start[s]
-        hype.append(int(round(100 * window / peak)))
+    peak = max(scores.values())
+    peak = peak if peak > 0 else 1.0
+    hype = [int(round(100 * scores[s] / peak)) for s in selected]
 
     return selected, hype
 
@@ -560,7 +659,7 @@ with st.container(border=True):
             type=["mp4", "mov", "mkv", "webm"],
         )
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, gap="large")
 
     count = col1.slider("Number of clips", 1, 5, 5)
     length = col2.slider("Clip duration (seconds)", 30, 60, 40, step=5)
@@ -625,8 +724,11 @@ if generate:
 
         if "403" in message:
             st.error(
-                "YouTube returned HTTP 403. The hosting IP may be restricted. "
-                "Try uploading the video instead."
+                "YouTube returned HTTP 403 while sending the video data. "
+                "YouTube may be blocking this server's IP address. Try again, "
+                "upload the video directly, or point BGUTIL_BASE_URL at a "
+                "running BgUtils provider (the free Render instance may need "
+                "a minute to wake up)."
             )
         else:
             st.error(f"Processing failed: {message}")
@@ -638,7 +740,7 @@ if generate:
 
 if st.session_state.get("clips"):
 
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("✦ Your shorts")
 
     clips = st.session_state["clips"]
@@ -656,8 +758,13 @@ if st.session_state.get("clips"):
                 st.markdown(f"### Short {index + 1:02d}")
 
                 st.markdown(
-                    f'<span class="badge">⏱ {fmt_time(clip["start"])}</span>'
+                    f'<span class="badge">⏱ Starts at {fmt_time(clip["start"])}</span>'
                     f'<span class="badge hot">🔥 Hype {clip["hype"]}%</span>',
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown(
+                    f'<div class="meter"><div style="width:{clip["hype"]}%"></div></div>',
                     unsafe_allow_html=True,
                 )
 
