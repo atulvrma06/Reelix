@@ -718,8 +718,10 @@ def generate_clips(src, folder, count, length, progress, captions=None):
                     video_filter = VERTICAL_FILTER[:-3] + "[base];[base]ass=captions.ass[v]"
                 else:
                     st.warning(f"Clip {index + 1}: no speech detected; exporting without captions.")
-            except Exception:
-                st.warning(f"Clip {index + 1}: transcription unavailable; exporting without captions.")
+            except Exception as exc:
+                import logging
+                logging.getLogger("reelix").exception("Caption transcription failed")
+                st.warning(f"Clip {index + 1}: transcription unavailable ({type(exc).__name__}); exporting without captions. See app logs for details.")
         run_command([
             "ffmpeg", "-v", "error", "-y",
             "-ss", str(start),
