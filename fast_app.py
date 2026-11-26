@@ -647,12 +647,14 @@ def caption_model():
 
 
 def make_captions(src, folder, start, length, settings):
-    audio = folder / "caption_audio.wav"
-    run_command(["ffmpeg", "-v", "error", "-y", "-ss", str(start),
-                 "-i", str(src), "-t", str(length), "-vn", "-ac", "1",
-                 "-ar", "16000", str(audio)])
+    raw = run_command(["ffmpeg", "-v", "error", "-ss", str(start),
+                       "-i", str(src), "-t", str(length), "-vn", "-ac", "1",
+                       "-ar", "16000", "-f", "f32le", "-"])
+    audio = np.frombuffer(raw, dtype="<f4").copy()
+    if not audio.size:
+        return False
     model = caption_model()
-    segments, _ = model.transcribe(str(audio), language=settings["language"],
+    segments, _ = model.transcribe(audio, language=settings["language"],
                                    beam_size=1, word_timestamps=True)
     def stamp(t):
         cs = max(0, round(t * 100))
