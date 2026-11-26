@@ -1,4 +1,9 @@
 import io
+import http.client
+import ipaddress
+import socket
+import ssl
+import time
 import os
 import shutil
 import subprocess
@@ -402,6 +407,61 @@ def find_node():
 # YOUTUBE DOWNLOAD
 # ==========================================
 
+def download_direct(url, folder):
+    """Fetch a bounded HTTPS MP4 from a public IP, without redirects."""
+    parsed = urlparse(url)
+    if (parsed.scheme != "https" or not parsed.hostname or parsed.username
+            or parsed.password or parsed.port not in (None, 443)
+            or not parsed.path.lower().endswith(".mp4")):
+        raise ValueError("Enter a public HTTPS URL ending in .mp4.")
+    host = parsed.hostname
+    addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    ips = [entry[4][0] for entry in addresses]
+    if not ips or any(not ipaddress.ip_address(ip).is_global for ip in ips):
+        raise ValueError("Only public video servers are allowed.")
+    class PinnedHTTPS(http.client.HTTPSConnection):
+        def connect(self):
+            raw = socket.create_connection((ips[0], 443), timeout=20)
+            try:
+                self.sock = self._context.wrap_socket(raw, server_hostname=host)
+            except Exception:
+                raw.close()
+                raise
+    conn = PinnedHTTPS(host, timeout=20, context=ssl.create_default_context())
+    limit = 200 * 1024 * 1024
+    target = folder / "source.mp4"
+    deadline = time.monotonic() + 180
+    try:
+        path = parsed.path + ("?" + parsed.query if parsed.query else "")
+        conn.request("GET", path, headers={"Accept": "video/mp4, application/octet-stream"})
+        response = conn.getresponse()
+        if response.status != 200:
+            raise ValueError(f"Video server returned HTTP {response.status}. Redirects are not supported.")
+        mime = response.getheader("Content-Type", "").split(";")[0].strip().lower()
+        if mime not in {"video/mp4", "application/octet-stream"}:
+            raise ValueError("The URL did not return an MP4 video.")
+        declared = response.getheader("Content-Length")
+        if declared and int(declared) > limit:
+            raise ValueError("Direct video limit is 200 MB.")
+        total = 0
+        with target.open("wb") as output:
+            while True:
+                if time.monotonic() > deadline:
+                    raise ValueError("Direct download timed out.")
+                chunk = response.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > limit:
+                    raise ValueError("Direct video limit is 200 MB.")
+                output.write(chunk)
+        if not total:
+            raise ValueError("Empty video response.")
+        return target
+    finally:
+        conn.close()
+
+
 def download_youtube(url, folder):
     parsed = urlparse(url)
 
@@ -642,7 +702,7 @@ with st.container(border=True):
 
     mode = st.radio(
         "Source",
-        ["YouTube link", "Upload video"],
+        ["Upload video", "Direct MP4 link", "YouTube link"],
         horizontal=True,
     )
 
@@ -654,6 +714,10 @@ with st.container(border=True):
             "YouTube URL",
             placeholder="https://www.youtube.com/watch?v=...",
         )
+        st.caption("YouTube may restrict cloud downloads. Upload or use an authorized direct MP4 link if this fails.")
+    elif mode == "Direct MP4 link":
+        url = st.text_input("Direct HTTPS MP4 URL", placeholder="https://example.com/video.mp4")
+        st.caption("Public MP4 file, up to 200 MB; redirects are not supported.")
     else:
         upload = st.file_uploader(
             "Upload your video",
@@ -697,6 +761,9 @@ if generate:
                 src = folder / ("source" + Path(upload.name).suffix.lower())
                 src.write_bytes(upload.getbuffer())
 
+            elif mode == "Direct MP4 link":
+                progress.progress(5, text="Downloading MP4...")
+                src = download_direct(url.strip(), folder)
             else:
                 if not url.strip():
                     raise ValueError("Please enter a YouTube URL.")
@@ -723,14 +790,8 @@ if generate:
     except Exception as error:
         message = str(error)
 
-        if "403" in message:
-            st.error(
-                "YouTube returned HTTP 403 while sending the video data. "
-                "YouTube may be blocking this server's IP address. Try again, "
-                "upload the video directly, or point BGUTIL_BASE_URL at a "
-                "running BgUtils provider (the free Render instance may need "
-                "a minute to wake up)."
-            )
+        if mode == "YouTube link" and any(term in message.lower() for term in ("403", "429", "not a bot", "sign in")):
+            st.error("YouTube restricted this cloud server. Upload an authorized video file or use a direct MP4 link instead.")
         else:
             st.error(f"Processing failed: {message}")
 
