@@ -431,8 +431,9 @@ def download_youtube(url, folder):
         "fragment_retries": 8,
         "extractor_retries": 5,
         "file_access_retries": 3,
-        "quiet": True,
-        "no_warnings": True,
+        "quiet": False,
+        "no_warnings": False,
+        "verbose": False,
     }
 
     node_path = find_node()
