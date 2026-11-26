@@ -463,6 +463,89 @@ def download_direct(url, folder):
         conn.close()
 
 
+@st.cache_resource
+def flashdata_budget():
+    import threading
+    return {"lock": threading.Lock(), "used": 0}
+
+
+def download_flashdata(url, folder, progress):
+    import requests
+    import uuid
+    import re
+    from urllib.parse import parse_qs
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.username or parsed.password:
+        raise ValueError("Enter a valid HTTPS YouTube URL.")
+    if parsed.hostname == "youtu.be":
+        video_id = parsed.path.strip("/")
+    elif parsed.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+        video_id = parse_qs(parsed.query).get("v", [""])[0] if parsed.path == "/watch" else (
+            parsed.path.split("/")[2] if parsed.path.startswith("/shorts/") else "")
+    else:
+        video_id = ""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+        raise ValueError("Enter a valid YouTube video link.")
+    key = get_secret("FLASHDATA_API_KEY")
+    if not key:
+        raise ValueError("FlashData API is not configured.")
+    # Shared, conservative process-local cap. Provider-side hard limits are also required.
+    budget = flashdata_budget()
+    limit = max(0, min(20, int(get_secret("FLASHDATA_MAX_JOBS", "2"))))
+    with budget["lock"]:
+        if budget["used"] >= limit:
+            raise ValueError("YouTube test quota reached. Use upload or direct MP4.")
+        budget["used"] += 1
+    host = "youtube-downloader-video-audio-and-shorts-by-flashdata.p.rapidapi.com"
+    base = "https://" + host
+    headers = {"X-RapidAPI-Key": key, "X-RapidAPI-Host": host}
+    def call(method, path, **kwargs):
+        try:
+            response = requests.request(method, base + path, headers=headers,
+                                        timeout=30, allow_redirects=False, **kwargs)
+        except requests.RequestException:
+            raise RuntimeError("FlashData connection failed.") from None
+        if response.status_code not in (200, 201, 202):
+            raise RuntimeError(f"FlashData API returned HTTP {response.status_code}. Check subscription and quota.")
+        return response.json()
+    # Submit endpoint path must match the provider's POST code snippet.
+    submit_path = get_secret("FLASHDATA_SUBMIT_PATH")
+    if not re.fullmatch(r"/rapidapi/youtube-download/[A-Za-z0-9/_-]*", submit_path or ""):
+        raise ValueError("FlashData submit endpoint is not configured.")
+    try:
+        response = requests.post(base + submit_path, headers={**headers, "Idempotency-Key": uuid.uuid4().hex},
+                                 json={"url": "https://www.youtube.com/watch?v=" + video_id,
+                                       "download_type": "audio_video", "output_format": "mp4",
+                                       "video_quality": "<=360", "fps": "<=30", "audio_language": "original"},
+                                 timeout=30, allow_redirects=False)
+    except requests.RequestException:
+        raise RuntimeError("FlashData submission failed.") from None
+    if response.status_code not in (200, 201, 202):
+        raise RuntimeError(f"FlashData submit returned HTTP {response.status_code}. Check subscription and quota.")
+    job = response.json()
+    job_id = job.get("id", "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", job_id):
+        raise RuntimeError("FlashData did not return a valid task ID.")
+    path = "/rapidapi/youtube-download/jobs/" + job_id
+    deadline = time.monotonic() + 240
+    while time.monotonic() < deadline:
+        progress.progress(8, text="Waiting for FlashData conversion...")
+        status = call("GET", path)
+        state = str(status.get("status", "")).lower()
+        if state in {"completed", "complete", "success", "succeeded", "ready", "finished", "done"}:
+            break
+        if state in {"failed", "error", "cancelled", "expired", "canceled"}:
+            raise RuntimeError("FlashData conversion failed.")
+        time.sleep(5)
+    else:
+        raise RuntimeError("FlashData conversion timed out or returned an unknown status.")
+    file = call("GET", path + "/file")
+    if int(file.get("size_bytes") or 0) > 200 * 1024 * 1024:
+        raise ValueError("Converted video exceeds 200 MB.")
+    progress.progress(10, text="Downloading converted MP4...")
+    return download_direct(file.get("download_url", ""), folder)
+
+
 def download_youtube(url, folder):
     parsed = urlparse(url)
 
@@ -845,7 +928,10 @@ if generate:
                     raise ValueError("Please enter a YouTube URL.")
 
                 progress.progress(5, text="Downloading video...")
-                src = download_youtube(url.strip(), folder)
+                if get_secret("FLASHDATA_API_KEY"):
+                    src = download_flashdata(url.strip(), folder, progress)
+                else:
+                    src = download_youtube(url.strip(), folder)
 
             clips = generate_clips(src, folder, count, length, progress, captions)
 
@@ -866,7 +952,7 @@ if generate:
     except Exception as error:
         message = str(error)
 
-        if mode == "YouTube link" and any(term in message.lower() for term in ("403", "429", "not a bot", "sign in")):
+        if mode == "YouTube link" and not get_secret("FLASHDATA_API_KEY") and any(term in message.lower() for term in ("403", "429", "not a bot", "sign in")):
             st.error("YouTube restricted this cloud server. Upload an authorized video file or use a direct MP4 link instead.")
         else:
             st.error(f"Processing failed: {message}")
