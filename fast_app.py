@@ -359,7 +359,7 @@ def get_secret(key, default=""):
     return os.getenv(key, default)
 
 
-def run_command(args):
+def run_command(args, cwd=None):
     try:
         result = subprocess.run(
             args,
@@ -367,6 +367,7 @@ def run_command(args):
             stderr=subprocess.PIPE,
             check=True,
             timeout=900,
+            cwd=cwd,
         )
     except subprocess.CalledProcessError as error:
         details = (error.stderr or b"").decode(errors="ignore").strip()
@@ -639,7 +640,56 @@ VERTICAL_FILTER = (
 )
 
 
-def generate_clips(src, folder, count, length, progress):
+@st.cache_resource
+def caption_model():
+    from faster_whisper import WhisperModel
+    return WhisperModel("tiny", device="cpu", compute_type="int8", cpu_threads=2, num_workers=1)
+
+
+def make_captions(src, folder, start, length, settings):
+    audio = folder / "caption_audio.wav"
+    run_command(["ffmpeg", "-v", "error", "-y", "-ss", str(start),
+                 "-i", str(src), "-t", str(length), "-vn", "-ac", "1",
+                 "-ar", "16000", str(audio)])
+    model = caption_model()
+    segments, _ = model.transcribe(str(audio), language=settings["language"],
+                                   beam_size=1, word_timestamps=True)
+    def stamp(t):
+        cs = max(0, round(t * 100))
+        return f"{cs//360000}:{cs//6000%60:02d}:{cs//100%60:02d}.{cs%100:02d}"
+    def clean(t):
+        return t.replace("\\", " ").replace("{", "(").replace("}", ")").replace("\n", " ").strip()
+    color = "&H00" + settings["color"][5:7] + settings["color"][3:5] + settings["color"][1:3]
+    alignment = {"Bottom": 2, "Center": 5, "Top": 8}[settings["position"]]
+    header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{settings['font']},{settings['size']},{color},&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,4,1,{alignment},80,80,240,1
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    events = []
+    for segment in segments:
+        if settings["animated"]:
+            for word in segment.words or []:
+                t = clean(word.word)
+                if t and word.start < length and word.end > word.start:
+                    events.append(f"Dialogue: 0,{stamp(word.start)},{stamp(min(length, word.end))},Default,,0,0,0,,{t}")
+        else:
+            t = clean(segment.text)
+            if t and segment.start < length and segment.end > segment.start:
+                events.append(f"Dialogue: 0,{stamp(segment.start)},{stamp(min(length, segment.end))},Default,,0,0,0,,{t}")
+    if not events:
+        return False
+    (folder / "captions.ass").write_text(header + "\n".join(events), encoding="utf-8")
+    return True
+
+
+def generate_clips(src, folder, count, length, progress, captions=None):
     duration = get_video_duration(src)
 
     if not 0 < duration <= MAX_DURATION:
@@ -660,12 +710,22 @@ def generate_clips(src, folder, count, length, progress):
             text=f"Rendering clip {index + 1}/{len(starts)}...",
         )
 
+        video_filter = VERTICAL_FILTER
+        if captions:
+            try:
+                progress.progress(30 + int(70 * index / len(starts)), text=f"Transcribing clip {index + 1}...")
+                if make_captions(src, folder, start, length, captions):
+                    video_filter = VERTICAL_FILTER[:-3] + "[base];[base]ass=captions.ass[v]"
+                else:
+                    st.warning(f"Clip {index + 1}: no speech detected; exporting without captions.")
+            except Exception:
+                st.warning(f"Clip {index + 1}: transcription unavailable; exporting without captions.")
         run_command([
             "ffmpeg", "-v", "error", "-y",
             "-ss", str(start),
             "-i", str(src),
             "-t", str(length),
-            "-filter_complex", VERTICAL_FILTER,
+            "-filter_complex", video_filter,
             "-map", "[v]",
             "-map", "0:a:0?",
             "-c:v", "libx264",
@@ -676,7 +736,7 @@ def generate_clips(src, folder, count, length, progress):
             "-b:a", "128k",
             "-movflags", "+faststart",
             str(output),
-        ])
+        ], cwd=str(folder))
 
         if not output.exists() or output.stat().st_size == 0:
             raise RuntimeError("A clip could not be rendered.")
@@ -729,6 +789,18 @@ with st.container(border=True):
     count = col1.slider("Number of clips", 1, 5, 5)
     length = col2.slider("Clip duration (seconds)", 30, 60, 40, step=5)
 
+    captions = None
+    if st.checkbox("AI subtitles (experimental, slower on free hosting)"):
+        language = st.selectbox("Speech language", ["Auto detect", "English", "Hindi"])
+        captions = {
+            "language": {"Auto detect": None, "English": "en", "Hindi": "hi"}[language],
+            "animated": st.checkbox("Word-by-word captions", value=True),
+            "font": st.selectbox("Caption font", ["Noto Sans", "Noto Sans Devanagari", "DejaVu Sans"]),
+            "size": st.slider("Caption size", 40, 100, 72),
+            "color": st.color_picker("Caption colour", "#FFFF00"),
+            "position": st.selectbox("Caption position", ["Bottom", "Center", "Top"]),
+        }
+        st.caption("First use downloads a small speech model. Try one clip first. Hindi uses Devanagari script.")
     allowed = st.checkbox("I own this video or have permission to process it.")
 
     generate = st.button(
@@ -771,7 +843,7 @@ if generate:
                 progress.progress(5, text="Downloading video...")
                 src = download_youtube(url.strip(), folder)
 
-            clips = generate_clips(src, folder, count, length, progress)
+            clips = generate_clips(src, folder, count, length, progress, captions)
 
         # Build the ZIP once, not on every rerun.
         buffer = io.BytesIO()
